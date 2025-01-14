@@ -11,7 +11,7 @@ import { onRoomJoin } from "../service/bot/room-join";
 import { onRoomLeave } from "../service/bot/room-leave";
 import { onFriendShip } from "../service/bot/friendship"; // 当有人给机器人发好友请求的时候会触发这个事件。
 import { onError } from "../service/bot/error"; // 当机器人内部出错的时候会触发error 事件。
-import CONFIG, { init } from "../config";
+import CONFIG from "../config";
 import { onMessage } from "../service/bot/message"; // 当机器人收到消息的时候会触发这个事件。
 import { getContact } from "@/utils/service";
 import PB from "@/utils/pb";
@@ -48,7 +48,6 @@ bot.on("friendship", onFriendShip);
 bot.on("error", onError);
 
 const start = async () => {
-  await init();
   await PB.login();
   bot
     .start()
@@ -58,23 +57,6 @@ const start = async () => {
 
 start();
 
-// 使用body-parser中间件解析JSON格式的请求体
-// app.use(bodyParser.json());
-
-// app.all("*", (req, res, next) => {
-//   console.log(`【🚚 Api server】`);
-//   console.log("req-body", req.body);
-//   next();
-// });
-
-/** 获取当前账号 id */
-// app.get("/api/userinfo", (req, res) => {
-//   console.log("获取当前账号");
-//   console.log("req-body", req.body);
-//   const userId = bot?.currentUser?.id || null;
-//   console.log("userId", userId);
-//   res.json({ id: userId });
-// });
 router.get("/api/userinfo", (ctx, next) => {
   let request = ctx.request;
   console.log(request.query); // 获取转换成对象之后的 get 请求参数

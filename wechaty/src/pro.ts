@@ -1,14 +1,20 @@
 let dotenv = require("dotenv");
-let Koa = require("koa");
-// Import necessary modules
-import { WechatyBuilder, log } from "@juzi/wechaty";
 import fs from "fs";
 import path from "path";
-import CONFIG, { init } from "../config";
+import { WechatyBuilder, log } from "@juzi/wechaty";
+import { FileBox } from "file-box";
+import { onScan } from "../service/bot/scan";
+import { onLogin } from "../service/bot/login"; // 当机器人需要扫码登陆的时候会触发这个事件。
+import { onLogout } from "../service/bot/logout"; // 当机器人检测到登出的时候，会触发事件，并会在事件中传递机器人的信息。
+import { onRoomJoin } from "../service/bot/room-join";
+import { onRoomLeave } from "../service/bot/room-leave";
+import { onFriendShip } from "../service/bot/friendship"; // 当有人给机器人发好友请求的时候会触发这个事件。
+import { onError } from "../service/bot/error"; // 当机器人内部出错的时候会触发error 事件。
+import CONFIG from "../config";
+import { onMessage } from "../service/bot/message"; // 当机器人收到消息的时候会触发这个事件。
 
 dotenv.config("./env");
 
-// Initialize Wechaty bot
 /** 机器人初始化 */
 export const bot = WechatyBuilder.build({
   name: CONFIG.name,
@@ -21,6 +27,25 @@ export const bot = WechatyBuilder.build({
     timeoutSeconds: 4 * 60, // 默认1分钟
   },
 });
+
+bot.on("scan", onScan);
+bot.on("login", onLogin);
+bot.on("logout", onLogout);
+bot.on("message", onMessage(bot));
+bot.on("room-join", onRoomJoin);
+bot.on("room-leave", onRoomLeave);
+bot.on("friendship", onFriendShip);
+bot.on("error", onError);
+
+const start = async () => {
+  bot
+    .start()
+    .then(() => log.info("StarterBot", "Starter Bot Started."))
+    .catch((e) => log.error("StarterBot", e));
+};
+
+start();
+
 // Global variables
 let directors = [];
 const configFolderPath = process.env.CONFIGS || "avatars";
@@ -184,7 +209,9 @@ async function refreshAny(roomId) {
   const botId = serviceListMap[roomId];
   if (botId) {
     const config = JSON.parse(fs.readFileSync(configFileMap[botId], "utf-8"));
-    config.service_list = Array.from(new Set([...config.service_list, ...members]));
+    config.service_list = Array.from(
+      new Set([...config.service_list, ...members])
+    );
     fs.writeFileSync(configFileMap[botId], JSON.stringify(config, null, 2));
     log.info(`Refreshed members of ${roomId} for bot ${botId}`);
   }
