@@ -31,4 +31,14 @@ export default {
     smartQa: "http://127.0.0.1:8000/api/ai/v1/scholar/ask",
     callAgent: "http://127.0.0.1:7777/dm",
   } as const,
+
+  directorOrders: {
+    add_source_to: "/add_source",
+    start: "/start",
+    add_service_to: "/add_service",
+    stop: "/stop",
+    co_director: "/promotion",
+    refresh: "/refresh",
+    bot_list: "/list",
+  },
 };

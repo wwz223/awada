@@ -6,11 +6,6 @@ export const getMSG = async (msg: Message, bot: Wechaty) => {
     if (!msg) return {}
     const botName = bot.currentUser.name()
     const mentionText = await msg?.mentionText()
-    const start = FormatUtils.checkCommand(staticConfig.room_order.start)
-    const stop = FormatUtils.checkCommand(staticConfig.room_order.stop)
-    const talking = FormatUtils.checkCommand(staticConfig.room_order.talking)
-    const update = FormatUtils.checkCommand(staticConfig.room_order.update)
-    const list = FormatUtils.checkCommand(staticConfig.room_order.list)
     const formatText = FormatUtils.formatText(mentionText)
     const roomName = await msg?.room()?.topic?.()
 
@@ -36,13 +31,6 @@ export const getMSG = async (msg: Message, bot: Wechaty) => {
             name: msg?.talker()?.name(), // 发消息人名字
             id: msg?.talker()?.id,  // 发消息人id
             permision: WechatyUi.getPermissionUsers(msg?.talker()?.id)?.permission
-        },
-        command: {
-            start,
-            stop,
-            talking,
-            update,
-            list
         },
         staticConfig: {
             ...staticConfig,

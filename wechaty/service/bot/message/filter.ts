@@ -2,9 +2,10 @@ import { MSGType } from "./msg";
 import { staticConfig } from "../../../config";
 import { Message } from "@juzi/wechaty";
 import { FormatUtils, TypeUtils, SensitivesUtils } from "@/utils";
+import config from "@/config";
 import { Hello } from "../friendship";
 const MESSAGE_TYPE = TypeUtils.MESSAGE_TYPE;
-
+const { directorOrders } = config;
 /** 判断消息是否处理 */
 export const isUseFulMessage = async (MSG: MSGType, msg: Message) => {
   const userHello = Hello().get(msg.talker().id);
@@ -45,15 +46,8 @@ export const isUseFulMessage = async (MSG: MSGType, msg: Message) => {
     // 未授权群
     if (!MSG?.roomPermission) {
       const command = FormatUtils.checkCommand(MSG.text);
-      if (command === MSG.command.start) return true;
-      if (command === MSG.command.update) return true;
-      if (command === MSG.command.stop || command === MSG.command.talking) {
-        if (MSG.isDirectors) {
-          msg.say(staticConfig.room_speech.no_permission);
-        } else {
-          msg.say(staticConfig.room_speech.stop);
-        }
-      }
+      if (command === directorOrders.start) return true;
+      if (command === directorOrders.refresh) return true;
 
       return false;
     }
