@@ -20,7 +20,6 @@ export const getMSG = async (msg: Message, bot: Wechaty) => {
         room: msg?.room(),
         roomName: roomName,
         roomPermission: WechatyUi.getPermissionRoom(msg?.room()?.id).permission,
-        roomDirectors: WechatyUi.getPermissionRoom(msg?.room()?.id).rooms,
         isDirectors: await WechatyUi.isDirectors(msg?.talker()?.id), // 是否为导演
         mention: {
             acountList: await msg?.mentionList(), // 提及用户列表

@@ -1,15 +1,13 @@
-import { MESSAGE_TYPE } from "@/utils/type";
 import { MSGType } from "../msg";
 import { Message } from "@juzi/wechaty";
-import { MessageUtils, FileUtils, BotUtils, FormatUtils, isUrl } from "@/utils";
+import { MessageUtils, FileUtils, isUrl } from "@/utils";
 import {
   requestFileAdd,
   requestFileDelete,
   requestPlan,
 } from "@/service/algorithm";
 import Conversation from "./conversation";
-import { ConfigStatusType } from "./const";
-import Config, { FilesPath, CachePath } from "@/config";
+import Config, { FilesPath } from "@/config";
 import Plan, { replyMessage, xlsxAction } from "../plan";
 import dayjs from "dayjs";
 import { getMessageFunUser, getMessageFunDirector } from "./message-func";
@@ -106,7 +104,7 @@ export default async (MSG: MSGType, msg: Message) => {
     }
 
     if (MESSAGE_FUNC === "文本链接" || MESSAGE_FUNC === "链接") {
-      resetTalkerConfig(talkerId)
+      resetTalkerConfig(talkerId);
       return;
       // let link = "";
       // if (MESSAGE_FUNC === "链接") {
@@ -262,9 +260,6 @@ export default async (MSG: MSGType, msg: Message) => {
       }
     }
 
-    // if (text.trim().startsWith('#') || text.trim().startsWith('＃')) return msg.say(staticConfig.person_speech.welcome)
-    // return SmartQa(MSG, msg)
-    // return Plan(MSG, msg)
     if (NORMAL_MESSAGE_FUNC === "未知") {
       return;
     } else if (
@@ -284,25 +279,6 @@ export default async (MSG: MSGType, msg: Message) => {
       ) {
         resetTalkerConfig(talkerId);
         return;
-        // await msg.forward(user);
-        // msg.say("收到！已将该文档转发给管理员进行审核[加油]");
-        // console.log("消息转发成功");
-        // let link = "";
-        // if (NORMAL_MESSAGE_FUNC === "链接") {
-        //   const urlLink = await msg.toUrlLink();
-        //   link = urlLink.url();
-        // } else {
-        //   link = text;
-        // }
-        // console.log("链接", link);
-        // user.say(
-        //   `【${talker.name}】申请将该文档添加到组织知识库，确认请回复：确认`
-        // );
-        // console.log("链接保存成功！");
-        // resetTalkerConfig(defaultDirectorId, {
-        //   fileName: link,
-        //   status: "是否添加文件",
-        // });
       } else if (NORMAL_MESSAGE_FUNC === "文件") {
         const file = await msg.toFileBox();
         const fileName = file.name;
@@ -321,18 +297,6 @@ export default async (MSG: MSGType, msg: Message) => {
             return resetTalkerConfig(talkerId);
           } else {
             resetTalkerConfig(talkerId);
-            // await msg.forward(user);
-            // msg.say("收到！已将该文档转发给管理员进行审核[加油]");
-            // console.log("消息转发成功");
-            // user.say(
-            //   `【${talker.name}】申请将该文档添加到组织知识库，确认请回复：确认`
-            // );
-            // console.log("文件保存成功！");
-            // msg.say("文件已发送管理员确认");
-            // resetTalkerConfig(defaultDirectorId, {
-            //   fileName,
-            //   status: "是否添加文件",
-            // });
           }
         } else {
           msg.say(staticConfig.common_speech.file_received_fail);

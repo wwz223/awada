@@ -51,8 +51,6 @@ export const isUseFulMessage = async (MSG: MSGType, msg: Message) => {
 
       return false;
     }
-    /** 群内无导演 */
-    if (!(MSG?.roomDirectors.length > 0)) return false;
 
     // 授权群内未 AT 消息
     if (!MSG?.mention.self) return false;

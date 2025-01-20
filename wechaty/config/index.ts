@@ -1,6 +1,5 @@
 const path = require("path");
-const fs = require("fs");
-import { FileUtils, TypeUtils } from "@/utils";
+import { TypeUtils } from "@/utils";
 
 export const WechatyuiPath =
   "/" + path.join(__dirname, "../database/wechatyui");
