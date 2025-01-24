@@ -17,8 +17,7 @@ export const onMessage = (bot: Wechaty) => {
     /** 读取消息信息 */
     const MSG = await getMSG(msg, bot);
 
-    const { talker, isDirectors, room, text, staticConfig } = MSG;
-    const { room_question } = staticConfig;
+    const { isDirectors, room, text } = MSG;
 
     /** 日志 */
     log(MSG);
@@ -69,27 +68,13 @@ export const onMessage = (bot: Wechaty) => {
           await WechatyUi.stopRoomBot(room);
           return;
         }
-
-        /** 群内问答 */
-        if (room_question === "open") {
-          Plan(MSG, msg);
-          // SmartQa(MSG, msg)
-          return;
-        } else {
-          room.say(staticConfig.room_speech.no_talking);
-        }
-      } else {
-        /** 群内问答 */
-        if (room_question === "open") {
-          Plan(MSG, msg);
-          // SmartQa(MSG, msg)
-          return;
-        } else {
-          room.say(staticConfig.room_speech.no_talking);
-        }
       }
+
+      /** 群内问答 */
+      Plan(MSG, msg);
     } else {
       /** 私发消息 */
+
       personMessage(MSG, msg);
     }
   };

@@ -2,8 +2,7 @@ import fs from "fs";
 import JSON5 from "json5";
 import { Room, Contact, log } from "@juzi/wechaty";
 import { RoomUsersType } from "./type";
-import { WechatyuiPath, ConfigPath, staticConfig } from "@/config";
-import { getRoomUserJSON } from "./file";
+import { WechatyuiPath, ConfigPath } from "@/config";
 import path from "path";
 
 const configFolderPath = "../../avatars";
@@ -19,6 +18,8 @@ export const loadDirectors = () => {
 
 /** 获取所有bot 配置文件 */
 export const loadBotsConfig = () => {
+  const botsList = [];
+  const serviceUserList = [];
   const configFileMap = {};
   const learnSourcesMap = {};
   const serviceListMap = {};
@@ -29,11 +30,16 @@ export const loadBotsConfig = () => {
     const configFile = path.join(configFolderPath, file);
     const config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
     const botId = config.bot_id || "default";
+    botsList.push(botId);
     configFileMap[botId] = configFile;
     config.learn_sources.forEach((source) => (learnSourcesMap[source] = botId));
+
+    serviceUserList.push(...config.service_list);
     config.service_list.forEach((service) => (serviceListMap[service] = botId));
   });
   return {
+    botsList,
+    serviceUserList,
     configFileMap,
     learnSourcesMap,
     serviceListMap,
@@ -90,9 +96,7 @@ export async function refreshRoom(room: Room) {
   const botId = serviceListMap[roomId];
   if (botId) {
     const config = JSON.parse(fs.readFileSync(configFileMap[botId], "utf-8"));
-    config.service_list = Array.from(
-      new Set([...config.service_list, ...membersIds])
-    );
+    config.service_list = Array.from(new Set([...membersIds]));
     fs.writeFileSync(configFileMap[botId], JSON.stringify(config, null, 2));
     room.say("已刷新群成员");
     log.info(`Refreshed members of ${roomId} for bot ${botId}`);
@@ -116,17 +120,13 @@ export async function stopRoomBot(room: Room) {
 
 /** 获取权限用户列表 */
 export const getPermissionUsers = (id?: number | string) => {
-  const { directors } = staticConfig;
-  const roomUserConfig: RoomUsersType = getRoomUserJSON() || [];
-  const allUsers = roomUserConfig?.reduce((pre, cur) => {
-    if (cur?.room?.memberIdList) return [...pre, ...cur?.room?.memberIdList];
-    return pre;
-  }, []);
+  const directors = loadDirectors();
+  const { serviceUserList } = loadBotsConfig();
 
   const userInfo = {
-    users: allUsers || [],
+    users: serviceUserList || [],
     permission: id
-      ? allUsers.includes(id) || directors.includes(id as string)
+      ? serviceUserList.includes(id) || directors.includes(id as string)
       : false,
   };
   return userInfo;
@@ -134,62 +134,140 @@ export const getPermissionUsers = (id?: number | string) => {
 
 /** 获取权限群 */
 export const getPermissionRoom = (id?: number | string) => {
-  const roomUserConfig: RoomUsersType = getRoomUserJSON() || [];
-  const allRooms = roomUserConfig?.reduce((pre, cur) => {
-    if (cur?.room?.id) return [...pre, cur?.room?.id];
-    return pre;
-  }, []);
+  const { botsList } = loadBotsConfig();
 
   const userInfo = {
-    rooms: allRooms || [],
-    permission: id ? allRooms.includes(id) : false,
+    rooms: botsList || [],
+    permission: id ? botsList.includes(id) : false,
   };
   return userInfo;
 };
 
-/** 更新room_users */
-export const updateRoomUsers = async (
-  room: Room,
-  type: "update" | "clear" | "add" | "delete"
-) => {
-  let alias = [];
-  const roomConfig = getRoomUserJSON() || [];
-  const allAlias = await room.memberAll();
+/**  */
 
-  if (type === "update") {
-    alias = await Promise.all(
-      allAlias.map((ali) => {
-        return (async () => {
-          const roomAlias = (await room.alias(ali)) || "";
-          return { ...ali?.payload, roomAlias: roomAlias };
-        })();
-      })
-    );
-  } else if (type === "clear") {
-    alias = [];
+interface Config {
+  learn_sources: string[];
+  [key: string]: any;
+}
+
+interface ResponseMessage {
+  type: string;
+  answer: string;
+}
+
+declare function aio_config_load(path: string): Promise<Config | null>;
+declare function aio_save_config(config: Config, path: string): Promise<void>;
+
+export async function addSourceTo(
+  room_id: string,
+  bot_id: string
+): Promise<ResponseMessage[]> {
+  const { configFileMap, learnSourcesMap } = loadBotsConfig();
+  // 检查机器人配置文件是否存在
+  if (!(bot_id in configFileMap)) {
+    return  [
+      {
+        type: "text",
+        answer: `未找到对应 ${bot_id} 的机器人配置文件，请先创建该机器人配置文件，再添加学习源`,
+      },
+    ];
   }
-  const newConfig = { room: room.payload, users: alias };
 
-  let newRoomConfig = [];
-  if (type === "delete") {
-    newRoomConfig = roomConfig?.filter((r) => r.room.id !== room.id);
+  // 检查聊天室是否已被其他机器人添加为学习源
+  if (room_id in learnSourcesMap && learnSourcesMap[room_id] !== bot_id) {
+    return [
+      {
+        type: "text",
+        answer: `${room_id} 已经被 ${learnSourcesMap[room_id]} 添加为学习源，无法再次添加`,
+      },
+    ];
+  }
+
+  // 检查聊天室是否已被当前机器人添加为学习源
+  if (room_id in learnSourcesMap && learnSourcesMap[room_id] === bot_id) {
+    return [
+      {
+        type: "text",
+        answer: `${room_id} 已经被 ${bot_id} 添加为学习源，无需重复添加`,
+      },
+    ];
+  }
+
+  // 加载机器人配置
+  const config = await aio_config_load(configFileMap[bot_id]);
+  if (!config) {
+    return [
+      {
+        type: "text",
+        answer: `智能体 ${bot_id} 配置文件异常，请检查后再操作`,
+      },
+    ];
+  }
+
+  // 更新配置
+  config.learn_sources.push(room_id);
+
+  // 使用锁确保并发安全
+  learnSourcesMap[room_id] = bot_id;
+
+  if (configFileMap[bot_id] && configFileMap[bot_id].endsWith(".json")) {
+    await aio_save_config(config, configFileMap[bot_id]);
+    fs.writeFileSync(configFileMap[bot_id], JSON.stringify(config, null, 2));
   } else {
-    let index = -1;
-    newRoomConfig = roomConfig?.map((r, i) => {
-      if (r.room.id === room.id) {
-        index = i;
-        return newConfig;
-      }
-      return r;
-    });
-    if (index === -1) newRoomConfig.push(newConfig);
+    return;
   }
 
-  fs.writeFileSync(
-    `${WechatyuiPath}/room_users.json`,
-    JSON.stringify(newRoomConfig, null, "\t")
-  );
-};
+  return [
+    {
+      type: "text",
+      answer: `已为 ${room_id} 添加到 ${bot_id} 的学习源，${bot_id} 将会主动学习该群聊信息`,
+    },
+  ];
+}
+
+/** 更新room_users */
+// export const updateRoomUsers = async (
+//   room: Room,
+//   type: "update" | "clear" | "add" | "delete"
+// ) => {
+//   let alias = [];
+//   const roomConfig = getRoomUserJSON() || [];
+//   const allAlias = await room.memberAll();
+
+//   if (type === "update") {
+//     alias = await Promise.all(
+//       allAlias.map((ali) => {
+//         return (async () => {
+//           const roomAlias = (await room.alias(ali)) || "";
+//           return { ...ali?.payload, roomAlias: roomAlias };
+//         })();
+//       })
+//     );
+//   } else if (type === "clear") {
+//     alias = [];
+//   }
+//   const newConfig = { room: room.payload, users: alias };
+
+//   let newRoomConfig = [];
+//   if (type === "delete") {
+//     newRoomConfig = roomConfig?.filter((r) => r.room.id !== room.id);
+//   } else {
+//     let index = -1;
+//     newRoomConfig = roomConfig?.map((r, i) => {
+//       if (r.room.id === room.id) {
+//         index = i;
+//         return newConfig;
+//       }
+//       return r;
+//     });
+//     if (index === -1) newRoomConfig.push(newConfig);
+//   }
+
+//   fs.writeFileSync(
+//     `${WechatyuiPath}/room_users.json`,
+//     JSON.stringify(newRoomConfig, null, "\t")
+//   );
+// };
 
 /** 更新全局 config.json 配置 */
 export const updateConfig = async (key: string, value: string) => {

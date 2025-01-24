@@ -46,6 +46,7 @@ export const isUseFulMessage = async (MSG: MSGType, msg: Message) => {
     // 未授权群
     if (!MSG?.roomPermission) {
       const command = FormatUtils.checkCommand(MSG.text);
+      if(command === directorOrders.co_director) return true;
       if (command === directorOrders.start) return true;
       if (command === directorOrders.refresh) return true;
 

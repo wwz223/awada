@@ -1,5 +1,5 @@
 export * from './question'
-export * from './plan'
+export * from './dm'
 export * from './file-list'
 export * from './file-add'
 export * from './file-delete'

@@ -1,15 +1,10 @@
 import { MSGType } from "../msg";
 import { Message } from "@juzi/wechaty";
-import { MessageUtils, FileUtils, isUrl } from "@/utils";
-import {
-  requestFileAdd,
-  requestFileDelete,
-  requestPlan,
-} from "@/service/algorithm";
+import { MessageUtils, isUrl } from "@/utils";
+import { requestDm } from "@/service/algorithm";
 import Conversation from "./conversation";
 import Config, { FilesPath } from "@/config";
 import Plan, { replyMessage, xlsxAction } from "../plan";
-import dayjs from "dayjs";
 import { getMessageFunUser, getMessageFunDirector } from "./message-func";
 import { bot } from "@/src/index";
 
@@ -39,33 +34,18 @@ export default async (MSG: MSGType, msg: Message) => {
 
   /** 当前导演对话轮次相关信息 */
   const CurrentUserConfig = ConversationConfig[MSG.talker.id];
-  const {
-    status = "无对话轮次",
-    lastTime = "",
-    fileList = [],
-    fileName = "",
-  } = CurrentUserConfig || {};
+  const { status = "无对话轮次", fileName = "" } = CurrentUserConfig || {};
 
   let duration = 1000;
-  if (lastTime) duration = dayjs().diff(dayjs(lastTime), "seconds");
 
   /** 是否超时 */
   const overtime = duration > timeout;
-
-  /** 修改意见超时 */
-  const modifyOvertime = dayjs().diff(dayjs(lastTime), "minutes") > 15;
 
   /** 导演消息 */
   if (isDirectors) {
     console.log("🌰🌰🌰 导演消息 🌰🌰🌰");
 
-    const MESSAGE_FUNC = getMessageFunDirector(
-      text,
-      type,
-      status,
-      overtime,
-      modifyOvertime
-    );
+    const MESSAGE_FUNC = getMessageFunDirector(text, type, status, overtime);
     console.log("MESSAGE_FUNC", MESSAGE_FUNC);
     /** 导演指令 */
     // if (MESSAGE_FUNC === "命令") return command(MSG, msg);
@@ -75,7 +55,7 @@ export default async (MSG: MSGType, msg: Message) => {
     } else if (MESSAGE_FUNC === "修改意见") {
       console.log("文件修改意见", fileName);
 
-      let { success, contents } = await requestPlan({
+      let { success, contents } = await requestDm({
         user_id: MSG.talker.id,
         type: "file",
         content: isUrl(fileName) ? fileName : `${FilesPath}/${fileName}`,
@@ -171,81 +151,16 @@ export default async (MSG: MSGType, msg: Message) => {
         console.log("文件保存本地失败");
       }
     }
-
-    if (MESSAGE_FUNC === "指令超时") return msg.say("指令已超时");
-
-    if (MESSAGE_FUNC === "添加文件取消") {
-      FileUtils.removeFile(fileName, "file");
-      msg.say(staticConfig.common_speech.abort);
-      return resetTalkerConfig(talkerId);
-    }
-
-    if (MESSAGE_FUNC === "添加文件确认") {
-      const fileSaved = await msg.say(staticConfig.common_speech.file_saved);
-      console.log("添加文件fileName", fileName);
-
-      let { success, contents, flag } = await requestFileAdd({
-        content: isUrl(fileName) ? fileName : `${FilesPath}/${fileName}`,
-        filename: fileName,
-      });
-      if (contents && contents.length > 0) {
-        if (flag === 21 && Array.isArray(contents)) {
-          const [title, program] = contents;
-          contents = [title];
-          await replyMessage(contents, msg, text);
-          MessageUtils.sendFile(program.text, msg);
-        } else {
-          await replyMessage(contents, msg, text);
-        }
-      } else if (success) {
-        await msg.say(staticConfig.common_speech.file_saved_success);
-      }
-      return resetTalkerConfig(talkerId);
-    }
-
-    if (MESSAGE_FUNC === "删除文件取消") {
-      msg.say(staticConfig.common_speech.abort);
-      return resetTalkerConfig(talkerId);
-    }
-
-    if (MESSAGE_FUNC === "删除文件序号") {
-      const numberText = Number(text);
-      const deleteFile = fileList?.[numberText - 1];
-      if (!deleteFile) return msg.say(staticConfig.common_speech.file_delete);
-      await msg
-        .say(staticConfig.common_speech.file_delete_start)
-        .then(async () => {
-          const { success, contents } = await requestFileDelete({
-            id: deleteFile.id,
-          });
-
-          if (success && contents.length > 0) {
-            await replyMessage(contents, msg);
-          } else if (success) {
-            await msg.say(staticConfig.common_speech.file_delete_success);
-          } else {
-            const replay = await replyMessage(contents, msg);
-            msg.say(staticConfig.common_speech.file_delete_failed);
-          }
-        });
-      return resetTalkerConfig(talkerId);
-    }
   } else {
     console.log("🌰🌰🌰 用户消息 🌰🌰🌰");
-    const NORMAL_MESSAGE_FUNC = getMessageFunUser(
-      text,
-      type,
-      status,
-      overtime,
-      modifyOvertime
-    );
+    const NORMAL_MESSAGE_FUNC = getMessageFunUser(text, type, status, overtime);
 
     if (NORMAL_MESSAGE_FUNC === "修改意见输入格式错误") {
       return msg.say("请用文字或者语音输入修改意见！");
     } else if (NORMAL_MESSAGE_FUNC === "修改意见") {
       console.log("文件修改意见", fileName);
 
-      let { success, contents } = await requestPlan({
+      let { success, contents } = await requestDm({
         user_id: MSG.talker.id,
         type: "file",
         content: isUrl(fileName) ? fileName : `${FilesPath}/${fileName}`,

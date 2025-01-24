@@ -1,5 +1,5 @@
 
-import { requestPlan } from '@/service/algorithm'
+import { requestDm } from '@/service/algorithm'
 import { MSGType } from '../msg'
 import { Message } from "@juzi/wechaty";
 import { MESSAGE_TYPE } from '@/utils/type'
@@ -39,7 +39,7 @@ export const replyMessage = async (res: QueryReturnType['contents'], msg: Messag
 
 export const xlsxAction = async (MSG: MSGType, msg: Message, fileName: string) => {
     await msg.say('收到，请稍候')
-    let { success, contents, flag } = await requestPlan({ user_id: MSG.talker.id, type: 'file', content: `${CachePath}/${fileName}` })
+    let { success, contents, flag } = await requestDm({ user_id: MSG.talker.id, type: 'file', content: `${CachePath}/${fileName}` })
     await replyMessage(contents, msg)
     // MessageUtils.sendFile(program.text, msg)
 }
@@ -63,7 +63,7 @@ export default async (MSG: MSGType, msg: Message) => {
 
         console.log('plan text', text)
         // 请求机器人接口回复
-        let { flag, success, contents } = await requestPlan({ user_id: MSG.talker.id, type: 'text', content: text });
+        let { flag, success, contents } = await requestDm({ user_id: MSG.talker.id, type: 'text', content: text });
 
         if (flag === 21 && Array.isArray(contents)) {
             const [title, program] = contents
@@ -78,7 +78,7 @@ export default async (MSG: MSGType, msg: Message) => {
     //     const file = await msg.toFileBox();
     //     const fileName = await MessageUtils.saveAudio(file);
     //     // 请求机器人接口回复
-    //     let { contents } = await requestPlan({ user_id: MSG.talker.id, type: 'voice', content: fileName });
+    //     let { contents } = await requestDm({ user_id: MSG.talker.id, type: 'voice', content: fileName });
     //     await replyMessage(contents, msg)
     // } 
     else if (MSG.type === MESSAGE_TYPE.文件) {
